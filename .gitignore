@@ -1,0 +1,23 @@
+# Node.js
+node_modules/
+dist/
+.env
+
+# macOS
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDEs
+.vscode/
+.idea/
+
+# Build
+build/
+
+# Dependency directories
+bower_components/
+
