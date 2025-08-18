@@ -29,7 +29,8 @@ mongoose.connect(MONGO_URI, {
 
 const allowedOrigins = [
   "http://localhost:3000", 
-  "https://property-management-frontend-alpha.vercel.app"
+  "https://property-management-frontend-alpha.vercel.app",
+  "https://property-management-frontend-rnk74c91c.vercel.app"
 ];
 
 app.use(cors({
