@@ -27,7 +27,16 @@ mongoose.connect(MONGO_URI, {
 
 //app.use(cors()); 
 
-app.use(cors({ origin: 'https://property-management-backend-hrjp.onrender.com/api/', credentials: true }));
+const allowedOrigins = [
+  "http://localhost:5000", // for local frontend
+  "https://property-management-frontend.vercel.app/", // your deployed frontend
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
