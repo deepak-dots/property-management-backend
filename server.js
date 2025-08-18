@@ -28,7 +28,7 @@ mongoose.connect(MONGO_URI, {
 //app.use(cors()); 
 
 const allowedOrigins = [
-  "http://localhost:5000", // for local frontend
+  "http://localhost:3000", // for local frontend
   "https://property-management-frontend.vercel.app/", // your deployed frontend
 ];
 
