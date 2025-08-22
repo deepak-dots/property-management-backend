@@ -10,6 +10,7 @@ const propertyRoutes = require('./routes/property');
 const authRoutes = require('./routes/auth');
 const userRouter = require('./routes/user');
 const quotesRouter = require('./routes/propertyQuotesForm');
+const cloudinary = require("./utils/cloudinary");
 
 
 
@@ -45,6 +46,17 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+
+app.get("/test-cloudinary", async (req, res) => {
+  try {
+    const result = await cloudinary.api.ping();
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 app.use(express.json());

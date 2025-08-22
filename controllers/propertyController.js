@@ -1,7 +1,14 @@
-// controllers/propertyController.js
-const fs = require('fs');
-const path = require('path');
+// const fs = require('fs');
+// const path = require('path');
 const Property = require('../models/Property');
+
+// Cloudinary setup
+const { v2: cloudinary } = require("cloudinary");
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.CLOUD_API_KEY,
+  api_secret: process.env.CLOUD_API_SECRET,
+});
 
 // Get all properties with search and filters
 exports.getProperties = async (req, res) => {
@@ -35,7 +42,7 @@ exports.getProperties = async (req, res) => {
 
     const total = await Property.countDocuments(filter);
     const properties = await Property.find(filter)
-    .sort({ createdAt: -1 })
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
@@ -60,6 +67,7 @@ exports.getPropertyById = async (req, res) => {
   }
 };
 
+// -------------------- CREATE PROPERTY --------------------
 exports.createProperty = async (req, res) => {
   try {
     const {
@@ -67,7 +75,11 @@ exports.createProperty = async (req, res) => {
       transactionType, status, price, reraId, address, description, city, activeStatus
     } = req.body;
 
-    const images = req.files ? req.files.map(file => file.filename) : [];
+    // OLD CODE (local disk save)
+    // const images = req.files ? req.files.map(file => file.filename) : [];
+
+    // NEW CODE (Cloudinary URLs)
+    const images = req.files ? req.files.map(file => file.path) : [];
 
     const newProperty = new Property({
       title,
@@ -96,8 +108,7 @@ exports.createProperty = async (req, res) => {
   }
 };
 
-
-
+// -------------------- UPDATE PROPERTY --------------------
 exports.updateProperty = async (req, res) => {
   try {
     const {
@@ -117,18 +128,32 @@ exports.updateProperty = async (req, res) => {
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    // Delete removed images from disk
+    // OLD CODE (delete local files)
+    /*
     removedImgs.forEach(img => {
       const filePath = path.join(__dirname, '..', 'uploads', img);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     });
+    */
+
+    // NEW CODE (optional: delete from Cloudinary if needed)
+    for (let img of removedImgs) {
+      try {
+        const urlParts = img.split('/');
+        const last = urlParts[urlParts.length - 1]; // e.g. abcdef.jpg
+        const publicId = last.includes('.') ? last.substring(0, last.lastIndexOf('.')) : last;
+        await cloudinary.uploader.destroy("property-images/" + publicId);
+      } catch (e) {
+        console.log("Cloudinary delete failed:", e.message);
+      }
+    }
 
     // Filter out removed images from current images
     let updatedImages = property.images.filter(img => !removedImgs.includes(img));
 
     // Append newly uploaded files
     if (req.files && req.files.length > 0) {
-      updatedImages = updatedImages.concat(req.files.map(f => f.filename));
+      updatedImages = updatedImages.concat(req.files.map(f => f.path)); // Cloudinary URL
     }
 
     // Build update object
@@ -163,7 +188,7 @@ exports.updateProperty = async (req, res) => {
   }
 };
 
-
+// -------------------- DUPLICATE PROPERTY --------------------
 exports.duplicateProperty = async (req, res) => {
   try {
     const original = await Property.findById(req.params.id);
@@ -172,7 +197,7 @@ exports.duplicateProperty = async (req, res) => {
     const duplicateData = {
       ...original.toObject(),
       _id: undefined,
-      title: original.title + ' (Copy)',
+      title: (original.title || 'Property') + ' (Copy)',
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -186,16 +211,33 @@ exports.duplicateProperty = async (req, res) => {
   }
 };
 
+// -------------------- DELETE PROPERTY --------------------
 exports.deleteProperty = async (req, res) => {
   try {
     const deleted = await Property.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Property not found' });
+
+    // Optional: delete its images from Cloudinary
+    if (deleted.images && deleted.images.length) {
+      for (let img of deleted.images) {
+        try {
+          const urlParts = img.split('/');
+          const last = urlParts[urlParts.length - 1];
+          const publicId = last.includes('.') ? last.substring(0, last.lastIndexOf('.')) : last;
+          await cloudinary.uploader.destroy("property-images/" + publicId);
+        } catch (e) {
+          console.log("Cloudinary delete failed:", e.message);
+        }
+      }
+    }
+
     res.status(200).json({ message: 'Property deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Delete failed', error: err.message });
   }
 };
 
+// -------------------- RELATED PROPERTIES --------------------
 exports.getRelatedProperties = async (req, res) => {
   try {
     const currentProperty = await Property.findById(req.params.id);
@@ -203,6 +245,7 @@ exports.getRelatedProperties = async (req, res) => {
 
     const related = await Property.find({
       _id: { $ne: currentProperty._id },
+      city: currentProperty.city, // simple relation by city
     }).limit(3);
 
     res.json(related);
