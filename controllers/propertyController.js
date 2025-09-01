@@ -21,6 +21,7 @@ exports.getProperties = async (req, res) => {
       status,
       priceMin,
       priceMax,
+      propertyType,
       transactionType,
       limit: limitQuery,
       page: pageQuery,
@@ -33,6 +34,7 @@ exports.getProperties = async (req, res) => {
 
     if (search) filter.title = { $regex: search, $options: 'i' };
     if (city) filter.city = city;
+    if (propertyType) filter.propertyType = propertyType;
     if (bhkType) filter.bhkType = bhkType;
     if (furnishing) filter.furnishing = furnishing;
     if (status) filter.status = status;
@@ -71,7 +73,7 @@ exports.getPropertyById = async (req, res) => {
 exports.createProperty = async (req, res) => {
   try {
     const {
-      title, bhkType, furnishing, bedrooms, bathrooms, superBuiltupArea, developer, project,
+      title, bhkType, furnishing, bedrooms, bathrooms, superBuiltupArea, developer, project, propertyType,
       transactionType, status, price, reraId, address, description, city, activeStatus
     } = req.body;
 
@@ -90,6 +92,7 @@ exports.createProperty = async (req, res) => {
       superBuiltupArea,
       developer,
       project,
+      propertyType,
       transactionType,
       status,
       price: price ? Number(price) : undefined,
@@ -113,7 +116,7 @@ exports.updateProperty = async (req, res) => {
   try {
     const {
       title, bhkType, furnishing, bedrooms, bathrooms, superBuiltupArea,
-      developer, project, transactionType, status, price, reraId, address,
+      developer, project, transactionType, propertyType, status, price, reraId, address,
       description, city, activeStatus, existingImages, removedImages
     } = req.body;
 
@@ -166,6 +169,7 @@ exports.updateProperty = async (req, res) => {
       superBuiltupArea,
       developer,
       project,
+      propertyType,
       transactionType,
       status,
       price: price !== undefined ? Number(price) : undefined,

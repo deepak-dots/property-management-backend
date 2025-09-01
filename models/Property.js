@@ -3,24 +3,23 @@ const mongoose = require('mongoose');
 const PropertySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
-  price: Number,
-  city: String,
+  price: { type: Number, required: true },
+  city: { type: String, required: true },
   location: String,
   address: String,
+  propertyType: { type: String, enum: ["Flat", "Villa", "Duplex"] },
   bhkType: { type: String, enum: ['1 BHK', '2 BHK', '3 BHK', '4 BHK'] },
   furnishing: { type: String, enum: ['Furnished', 'Semi-Furnished', 'Unfurnished'] },
   bedrooms: { type: Number },
   bathrooms: { type: Number },
-  superBuiltupArea: String, // or camelCase: superBuiltUpArea (pick one)
+  superBuiltupArea: String, // or camelCase: superBuiltUpArea
   developer: String,
   project: String,
   transactionType: { type: String, enum: ['New', 'Resale'] },
-  status: {
-    type: String,
-    enum: ['Ready to Move', 'Under Construction'],
-  },
+  status: { type: String, enum: ['Ready to Move', 'Under Construction'] },
   reraId: String,
   images: [{ type: String }], 
+  amenities: [{ type: String }], // optional: pool, gym, parking, etc.
   activeStatus: { type: String, enum: ['Active', 'Draft'], default: 'Draft' }
 }, { timestamps: true });
 
