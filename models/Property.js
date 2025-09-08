@@ -5,22 +5,31 @@ const PropertySchema = new mongoose.Schema({
   description: String,
   price: { type: Number, required: true },
   city: { type: String, required: true },
-  location: String,
   address: String,
+
+  // GeoJSON Point
+  location: {
+    type: { type: String, enum: ["Point"], default: "Point" },
+    coordinates: { type: [Number] } // [lng, lat]
+  },
+
   propertyType: { type: String, enum: ["Flat", "Villa", "Duplex"] },
   bhkType: { type: String, enum: ['1 BHK', '2 BHK', '3 BHK', '4 BHK'] },
   furnishing: { type: String, enum: ['Furnished', 'Semi-Furnished', 'Unfurnished'] },
   bedrooms: { type: Number },
   bathrooms: { type: Number },
-  superBuiltupArea: String, // or camelCase: superBuiltUpArea
+  superBuiltupArea: String,
   developer: String,
   project: String,
   transactionType: { type: String, enum: ['New', 'Resale'] },
   status: { type: String, enum: ['Ready to Move', 'Under Construction'] },
   reraId: String,
-  images: [{ type: String }], 
-  amenities: [{ type: String }], // optional: pool, gym, parking, etc.
+  images: [{ type: String }],
+  amenities: [{ type: String }],
   activeStatus: { type: String, enum: ['Active', 'Draft'], default: 'Draft' }
 }, { timestamps: true });
+
+// 2dsphere index for geospatial queries
+PropertySchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model('Property', PropertySchema);

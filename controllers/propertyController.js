@@ -1,30 +1,39 @@
-// const fs = require('fs');
-// const path = require('path');
+// controllers/propertyController.js
+require('dotenv').config();
+const axios = require('axios');
 const Property = require('../models/Property');
+const { v2: cloudinary } = require('cloudinary');
 
-// Cloudinary setup
-const { v2: cloudinary } = require("cloudinary");
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.CLOUD_API_KEY,
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
-// Get all properties with search and filters
+// Helper: geocode address using Google Geocoding API (returns [lng, lat])
+async function geocodeAddress(address) {
+  if (!address || !process.env.GOOGLE_MAPS_API_KEY) return null;
+  try {
+    const res = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
+      params: { address, key: process.env.GOOGLE_MAPS_API_KEY }
+    });
+    if (res.data && res.data.results && res.data.results.length) {
+      const loc = res.data.results[0].geometry.location;
+      return [loc.lng, loc.lat];
+    }
+  } catch (err) {
+    console.warn("Geocode failed:", err.message);
+  }
+  return null;
+}
+
+// -------------------- GET ALL PROPERTIES (with filters & pagination) --------------------
 exports.getProperties = async (req, res) => {
   try {
     const {
-      search,
-      city,
-      bhkType,
-      furnishing,
-      status,
-      priceMin,
-      priceMax,
-      propertyType,
-      transactionType,
-      limit: limitQuery,
-      page: pageQuery,
+      search, city, bhkType, furnishing, status,
+      priceMin, priceMax, propertyType, transactionType,
+      limit: limitQuery, page: pageQuery
     } = req.query;
 
     const limit = parseInt(limitQuery) || 9;
@@ -59,6 +68,7 @@ exports.getProperties = async (req, res) => {
   }
 };
 
+// -------------------- GET BY ID --------------------
 exports.getPropertyById = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
@@ -73,17 +83,20 @@ exports.getPropertyById = async (req, res) => {
 exports.createProperty = async (req, res) => {
   try {
     const {
-      title, bhkType, furnishing, bedrooms, bathrooms, superBuiltupArea, developer, project, propertyType,
-      transactionType, status, price, reraId, address, description, city, activeStatus
+      title, bhkType, furnishing, bedrooms, bathrooms, superBuiltupArea,
+      developer, project, propertyType, transactionType, status,
+      price, reraId, address, description, city, activeStatus,
+      lat, lng
     } = req.body;
 
-    // OLD CODE (local disk save)
-    // const images = req.files ? req.files.map(file => file.filename) : [];
+    // Convert lat/lng to numbers if provided
+    const numLat = lat !== undefined ? Number(lat) : undefined;
+    const numLng = lng !== undefined ? Number(lng) : undefined;
 
-    // NEW CODE (Cloudinary URLs)
+    // Cloudinary uploaded file URLs
     const images = req.files ? req.files.map(file => file.path) : [];
 
-    const newProperty = new Property({
+    const propertyData = {
       title,
       bhkType,
       furnishing,
@@ -102,11 +115,21 @@ exports.createProperty = async (req, res) => {
       city,
       activeStatus: activeStatus || 'Draft',
       images
-    });
+    };
 
+    // Set location if lat/lng provided, else geocode address
+    if (numLat && numLng) {
+      propertyData.location = { type: "Point", coordinates: [numLng, numLat] };
+    } else if (address) {
+      const coords = await geocodeAddress(address);
+      if (coords) propertyData.location = { type: "Point", coordinates: coords };
+    }
+
+    const newProperty = new Property(propertyData);
     const savedProperty = await newProperty.save();
     res.status(201).json({ message: 'Property created!', property: savedProperty });
   } catch (err) {
+    console.error("Create property error:", err);
     res.status(500).json({ message: 'Failed to create property', error: err.message });
   }
 };
@@ -117,10 +140,10 @@ exports.updateProperty = async (req, res) => {
     const {
       title, bhkType, furnishing, bedrooms, bathrooms, superBuiltupArea,
       developer, project, transactionType, propertyType, status, price, reraId, address,
-      description, city, activeStatus, existingImages, removedImages
+      description, city, activeStatus, existingImages, removedImages, lat, lng
     } = req.body;
 
-    // Parse JSON if sent as strings
+    // Parse JSON strings if sent as form fields
     const existingImgs = existingImages
       ? (typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages)
       : [];
@@ -131,19 +154,11 @@ exports.updateProperty = async (req, res) => {
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    // OLD CODE (delete local files)
-    /*
-    removedImgs.forEach(img => {
-      const filePath = path.join(__dirname, '..', 'uploads', img);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    });
-    */
-
-    // NEW CODE (optional: delete from Cloudinary if needed)
+    // Delete removed images from Cloudinary
     for (let img of removedImgs) {
       try {
         const urlParts = img.split('/');
-        const last = urlParts[urlParts.length - 1]; // e.g. abcdef.jpg
+        const last = urlParts[urlParts.length - 1];
         const publicId = last.includes('.') ? last.substring(0, last.lastIndexOf('.')) : last;
         await cloudinary.uploader.destroy("property-images/" + publicId);
       } catch (e) {
@@ -151,15 +166,12 @@ exports.updateProperty = async (req, res) => {
       }
     }
 
-    // Filter out removed images from current images
+    // Build updated image list
     let updatedImages = property.images.filter(img => !removedImgs.includes(img));
-
-    // Append newly uploaded files
     if (req.files && req.files.length > 0) {
-      updatedImages = updatedImages.concat(req.files.map(f => f.path)); // Cloudinary URL
+      updatedImages = updatedImages.concat(req.files.map(f => f.path));
     }
 
-    // Build update object
     const updatedData = {
       title,
       bhkType,
@@ -181,13 +193,23 @@ exports.updateProperty = async (req, res) => {
       images: updatedImages,
     };
 
-    // Remove undefined fields
+    // update location if provided or re-geocode address
+    const numLat = lat !== undefined ? Number(lat) : undefined;
+    const numLng = lng !== undefined ? Number(lng) : undefined;
+
+    if (numLat && numLng) {
+      updatedData.location = { type: "Point", coordinates: [numLng, numLat] };
+    } else if (address) {
+      const coords = await geocodeAddress(address);
+      if (coords) updatedData.location = { type: "Point", coordinates: coords };
+    }
+
     Object.keys(updatedData).forEach(key => updatedData[key] === undefined && delete updatedData[key]);
 
     const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updatedData, { new: true });
-
     res.status(200).json(updatedProperty);
   } catch (err) {
+    console.error("Update property error:", err);
     res.status(500).json({ message: 'Update failed', error: err.message });
   }
 };
@@ -203,7 +225,8 @@ exports.duplicateProperty = async (req, res) => {
       _id: undefined,
       title: (original.title || 'Property') + ' (Copy)',
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      location: original.location ? { ...original.location } : undefined,
     };
 
     const duplicate = new Property(duplicateData);
@@ -211,6 +234,7 @@ exports.duplicateProperty = async (req, res) => {
 
     res.status(201).json(duplicate);
   } catch (err) {
+    console.error("Duplicate property error:", err);
     res.status(500).json({ message: 'Failed to duplicate property' });
   }
 };
@@ -221,7 +245,7 @@ exports.deleteProperty = async (req, res) => {
     const deleted = await Property.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Property not found' });
 
-    // Optional: delete its images from Cloudinary
+    // delete images from Cloudinary
     if (deleted.images && deleted.images.length) {
       for (let img of deleted.images) {
         try {
@@ -249,11 +273,59 @@ exports.getRelatedProperties = async (req, res) => {
 
     const related = await Property.find({
       _id: { $ne: currentProperty._id },
-      city: currentProperty.city, // simple relation by city
+      city: currentProperty.city,
     }).limit(3);
 
     res.json(related);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching related properties' });
+  }
+};
+
+// -------------------- COMPARE --------------------
+exports.compare = async (req, res) => {
+  try {
+    const ids = (req.query.ids || '').split(',').filter(Boolean);
+    if (ids.length === 0) {
+      return res.status(400).json({ message: 'Please provide property IDs in ?ids=...' });
+    }
+
+    const properties = await Property.find({ _id: { $in: ids } });
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// -------------------- NEARBY PROPERTIES --------------------
+/**
+ * POST /api/properties/nearby
+ * body: { lat, lng, maxDistance (meters) }
+ */
+exports.getNearbyProperties = async (req, res) => {
+  try {
+    let { lat, lng, maxDistance = 50000, limit = 20 } = req.body;
+
+    if (!lat || !lng) return res.status(400).json({ message: "Latitude and Longitude required" });
+
+    lat = Number(lat);
+    lng = Number(lng);
+
+    const results = await Property.aggregate([
+      {
+        $geoNear: {
+          near: { type: "Point", coordinates: [lng, lat] },
+          distanceField: "distance",
+          maxDistance: maxDistance,
+          spherical: true,
+        }
+      },
+      { $limit: parseInt(limit) }
+    ]);
+
+    res.status(200).json({ count: results.length, properties: results });
+  } catch (err) {
+    console.error("Nearby search error:", err);
+    res.status(500).json({ message: "Error fetching nearby properties", error: err.message });
   }
 };
