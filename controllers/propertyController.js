@@ -308,7 +308,7 @@ exports.compare = async (req, res) => {
  */
 exports.getNearbyProperties = async (req, res) => {
   try {
-    let { lat, lng, maxDistance = 50000, limit = 20 } = req.body;
+    let { lat, lng, maxDistance = 10000, limit = 20 } = req.body;
 
     if (!lat || !lng) return res.status(400).json({ message: "Latitude and Longitude required" });
 
