@@ -89,11 +89,6 @@ exports.createProperty = async (req, res) => {
       lat, lng
     } = req.body;
 
-    // Convert lat/lng to numbers if provided
-    const numLat = lat !== undefined ? Number(lat) : undefined;
-    const numLng = lng !== undefined ? Number(lng) : undefined;
-
-    // Cloudinary uploaded file URLs
     const images = req.files ? req.files.map(file => file.path) : [];
 
     const propertyData = {
@@ -117,22 +112,30 @@ exports.createProperty = async (req, res) => {
       images
     };
 
-    // Set location if lat/lng provided, else geocode address
-    if (numLat && numLng) {
-      propertyData.location = { type: "Point", coordinates: [numLng, numLat] };
+    // ---- Handle Location ----
+    let coordinates;
+
+    if (lat !== undefined && lng !== undefined) {
+      coordinates = [Number(lng), Number(lat)]; // lng, lat
     } else if (address) {
-      const coords = await geocodeAddress(address);
-      if (coords) propertyData.location = { type: "Point", coordinates: coords };
+      const geo = await geocodeAddress(address);
+      if (geo && geo.length === 2) coordinates = geo;
+    }
+
+    if (coordinates) {
+      propertyData.location = { type: "Point", coordinates };
     }
 
     const newProperty = new Property(propertyData);
     const savedProperty = await newProperty.save();
+
     res.status(201).json({ message: 'Property created!', property: savedProperty });
   } catch (err) {
     console.error("Create property error:", err);
     res.status(500).json({ message: 'Failed to create property', error: err.message });
   }
 };
+
 
 // -------------------- UPDATE PROPERTY --------------------
 exports.updateProperty = async (req, res) => {
@@ -143,7 +146,6 @@ exports.updateProperty = async (req, res) => {
       description, city, activeStatus, existingImages, removedImages, lat, lng
     } = req.body;
 
-    // Parse JSON strings if sent as form fields
     const existingImgs = existingImages
       ? (typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages)
       : [];
@@ -157,8 +159,7 @@ exports.updateProperty = async (req, res) => {
     // Delete removed images from Cloudinary
     for (let img of removedImgs) {
       try {
-        const urlParts = img.split('/');
-        const last = urlParts[urlParts.length - 1];
+        const last = img.split('/').pop();
         const publicId = last.includes('.') ? last.substring(0, last.lastIndexOf('.')) : last;
         await cloudinary.uploader.destroy("property-images/" + publicId);
       } catch (e) {
@@ -166,7 +167,6 @@ exports.updateProperty = async (req, res) => {
       }
     }
 
-    // Build updated image list
     let updatedImages = property.images.filter(img => !removedImgs.includes(img));
     if (req.files && req.files.length > 0) {
       updatedImages = updatedImages.concat(req.files.map(f => f.path));
@@ -193,17 +193,20 @@ exports.updateProperty = async (req, res) => {
       images: updatedImages,
     };
 
-    // update location if provided or re-geocode address
-    const numLat = lat !== undefined ? Number(lat) : undefined;
-    const numLng = lng !== undefined ? Number(lng) : undefined;
-
-    if (numLat && numLng) {
-      updatedData.location = { type: "Point", coordinates: [numLng, numLat] };
+    // ---- Handle Location ----
+    let coordinates;
+    if (lat !== undefined && lng !== undefined) {
+      coordinates = [Number(lng), Number(lat)];
     } else if (address) {
-      const coords = await geocodeAddress(address);
-      if (coords) updatedData.location = { type: "Point", coordinates: coords };
+      const geo = await geocodeAddress(address);
+      if (geo && geo.length === 2) coordinates = geo;
     }
 
+    if (coordinates) {
+      updatedData.location = { type: "Point", coordinates };
+    }
+
+    // Remove undefined fields
     Object.keys(updatedData).forEach(key => updatedData[key] === undefined && delete updatedData[key]);
 
     const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updatedData, { new: true });
@@ -213,6 +216,7 @@ exports.updateProperty = async (req, res) => {
     res.status(500).json({ message: 'Update failed', error: err.message });
   }
 };
+
 
 // -------------------- DUPLICATE PROPERTY --------------------
 exports.duplicateProperty = async (req, res) => {
