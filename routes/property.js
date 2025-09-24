@@ -23,13 +23,29 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
+// -------------------- NEW ROUTE: Geocode Address --------------------
+router.get("/geocode", async (req, res) => {
+  try {
+    const { address } = req.query;
+    if (!address) return res.status(400).json({ error: "Address is required" });
+
+    const coords = await propertyController.geocodeAddress(address);
+    if (!coords) return res.status(404).json({ error: "Could not geocode address" });
+
+    res.json({ coordinates: coords }); // [lng, lat]
+  } catch (err) {
+    console.error("Geocode error:", err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // compare route
-router.get('/compare-properties', propertyController.compare);
+router.get("/compare-properties", propertyController.compare);
 
 // NEW: nearby (place BEFORE '/:id')
-router.post('/nearby', propertyController.getNearbyProperties);
+router.post("/nearby", propertyController.getNearbyProperties);
 
-
+// get all / get by ID
 router.get("/", propertyController.getProperties);
 router.get("/:id", propertyController.getPropertyById);
 
@@ -37,6 +53,7 @@ router.get("/:id", propertyController.getPropertyById);
 router.post("/", upload.array("images", 10), propertyController.createProperty);
 router.put("/:id", upload.array("images", 10), propertyController.updateProperty);
 
+// duplicate / delete / related
 router.post("/:id/duplicate", propertyController.duplicateProperty || ((req, res) => res.status(501).json({ message: "Not implemented" })));
 router.delete("/:id", propertyController.deleteProperty || ((req, res) => res.status(501).json({ message: "Not implemented" })));
 router.get("/:id/related", propertyController.getRelatedProperties || ((req, res) => res.status(501).json({ message: "Not implemented" })));

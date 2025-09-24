@@ -9,8 +9,8 @@ const PropertySchema = new mongoose.Schema({
 
   // GeoJSON Point
   location: {
-    type: { type: String, enum: ["Point"] }, // remove default
-    coordinates: { type: [Number] }           // [lng, lat]
+    type: { type: String, enum: ["Point"], default: "Point" }, // default added
+    coordinates: { type: [Number], default: [0, 0] }           // [lng, lat] default
   },
 
   propertyType: { type: String, enum: ["Flat", "Villa", "Duplex"] },

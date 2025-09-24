@@ -14,22 +14,38 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
   },
+  phone: {
+    type: String,
+    trim: true,
+    match: [/^[0-9]{10,15}$/, 'Please enter a valid phone number'],
+    default: '',
+  },
   password: {
     type: String,
     required: [true, 'Password is required'],
     minlength: 6,
-    select: false, // exclude password by default
+    select: false, // don't return password by default
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user',
+  },
+  // New field: favorites
+  favorites: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Property',
+  }],
 }, { timestamps: true });
 
-// Hash password before saving user document
+// Password hashing before saving
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
-// Method to compare given password with hashed password
+// Password match method
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

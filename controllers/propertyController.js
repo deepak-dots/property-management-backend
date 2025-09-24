@@ -1,4 +1,3 @@
-// controllers/propertyController.js
 require('dotenv').config();
 const axios = require('axios');
 const Property = require('../models/Property');
@@ -27,12 +26,13 @@ async function geocodeAddress(address) {
   return null;
 }
 
-// -------------------- GET ALL PROPERTIES (with filters & pagination) --------------------
+// -------------------- GET ALL PROPERTIES --------------------
 exports.getProperties = async (req, res) => {
   try {
     const {
       search, city, bhkType, furnishing, status,
       priceMin, priceMax, propertyType, transactionType,
+      lat, lng, radius,
       limit: limitQuery, page: pageQuery
     } = req.query;
 
@@ -41,6 +41,7 @@ exports.getProperties = async (req, res) => {
 
     const filter = {};
 
+    // Existing filters
     if (search) filter.title = { $regex: search, $options: 'i' };
     if (city) filter.city = city;
     if (propertyType) filter.propertyType = propertyType;
@@ -50,6 +51,17 @@ exports.getProperties = async (req, res) => {
     if (transactionType) filter.transactionType = transactionType;
     if (priceMin) filter.price = { ...filter.price, $gte: Number(priceMin) };
     if (priceMax) filter.price = { ...filter.price, $lte: Number(priceMax) };
+
+    // Radius filter
+    if (lat && lng && radius) {
+      const latitude = Number(lat);
+      const longitude = Number(lng);
+      const radiusInMiles = Number(radius);
+      const radiusInRadians = radiusInMiles / 3963.2;
+      filter.location = {
+        $geoWithin: { $centerSphere: [[longitude, latitude], radiusInRadians] }
+      };
+    }
 
     const total = await Property.countDocuments(filter);
     const properties = await Property.find(filter)
@@ -117,7 +129,7 @@ exports.createProperty = async (req, res) => {
 
     if (lat !== undefined && lng !== undefined) {
       coordinates = [Number(lng), Number(lat)]; // lng, lat
-    } else if (address) {
+    } else if (!lat && !lng && address) { // ✅ fallback geocode
       const geo = await geocodeAddress(address);
       if (geo && geo.length === 2) coordinates = geo;
     }
@@ -135,7 +147,6 @@ exports.createProperty = async (req, res) => {
     res.status(500).json({ message: 'Failed to create property', error: err.message });
   }
 };
-
 
 // -------------------- UPDATE PROPERTY --------------------
 exports.updateProperty = async (req, res) => {
@@ -197,7 +208,7 @@ exports.updateProperty = async (req, res) => {
     let coordinates;
     if (lat !== undefined && lng !== undefined) {
       coordinates = [Number(lng), Number(lat)];
-    } else if (address) {
+    } else if (!lat && !lng && address) { // ✅ fallback geocode
       const geo = await geocodeAddress(address);
       if (geo && geo.length === 2) coordinates = geo;
     }
@@ -216,7 +227,6 @@ exports.updateProperty = async (req, res) => {
     res.status(500).json({ message: 'Update failed', error: err.message });
   }
 };
-
 
 // -------------------- DUPLICATE PROPERTY --------------------
 exports.duplicateProperty = async (req, res) => {
@@ -249,7 +259,6 @@ exports.deleteProperty = async (req, res) => {
     const deleted = await Property.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Property not found' });
 
-    // delete images from Cloudinary
     if (deleted.images && deleted.images.length) {
       for (let img of deleted.images) {
         try {
@@ -302,10 +311,6 @@ exports.compare = async (req, res) => {
 };
 
 // -------------------- NEARBY PROPERTIES --------------------
-/**
- * POST /api/properties/nearby
- * body: { lat, lng, maxDistance (meters) }
- */
 exports.getNearbyProperties = async (req, res) => {
   try {
     let { lat, lng, maxDistance = 10000, limit = 20 } = req.body;

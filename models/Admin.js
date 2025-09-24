@@ -1,4 +1,3 @@
-// models/Admin.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -20,16 +19,18 @@ const adminSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Password is required'],
       minlength: 6,
-      select: false, // exclude by default
+      select: false,
+    },
+    role: {
+      type: String,
+      enum: ['admin'],
+      default: 'admin',
     },
   },
   { timestamps: true }
 );
 
-// Unique index for email
-adminSchema.index({ email: 1 }, { unique: true });
-
-// Hash password before save (and only if modified)
+// Hash password before save
 adminSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
@@ -39,10 +40,10 @@ adminSchema.pre('save', async function (next) {
 
 // Compare password
 adminSchema.methods.matchPassword = async function (enteredPassword) {
-  return bcrypt.compare(enteredPassword, this.password);
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Hide password & __v in JSON
+// Hide password & __v
 adminSchema.set('toJSON', {
   transform: function (doc, ret) {
     delete ret.password;
