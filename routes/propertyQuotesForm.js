@@ -1,21 +1,33 @@
 // routes/prepertyQuotesForm.js
 const express = require("express");
 const router = express.Router();
-const quoteController = require("../controllers/propertyQuotesForm");
-const { optional, authenticateUser } = require("../middleware/userAuth"); // destructure functions
+const verifyToken = require("../middleware/auth"); // user auth
+const {
+  createQuote,
+  getAllQuotes,
+  getMyQuotes,
+  getQuoteById,
+  deleteQuoteById,
+} = require("../controllers/propertyQuotesForm");
 
-// Create quote → login optional
-router.post("/", optional, quoteController.createQuote);
+// Create new quote (any user, optional auth)
+router.post("/", createQuote);
 
-// Logged-in user's quotes
-router.get("/my", authenticateUser, quoteController.getMyQuotes);
+// Admin: Get all quotes (protected)
+router.get("/", verifyToken, getAllQuotes);
 
-// Admin routes
-router.get("/", quoteController.getAllQuotes);
-router.get("/:id", quoteController.getQuoteById);
-router.delete("/:id", quoteController.deleteQuoteById);
+// User: Get my quotes (protected)
+router.get("/my", verifyToken, getMyQuotes);
+
+// Get by ID (protected)
+router.get("/:id", verifyToken, getQuoteById);
+
+// Delete quote by ID (protected)
+router.delete("/:id", verifyToken, deleteQuoteById);
 
 module.exports = router;
+
+
 
 
 
