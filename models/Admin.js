@@ -54,3 +54,4 @@ adminSchema.set('toJSON', {
 
 const Admin = mongoose.model('Admin', adminSchema);
 module.exports = Admin;
+
