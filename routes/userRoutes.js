@@ -1,6 +1,6 @@
-// routes/userRoutes.js
 const express = require('express');
 const router = express.Router();
+
 const {
   signupUser,
   loginUser,
@@ -20,27 +20,27 @@ const {
   clearFavorites,
 } = require('../controllers/favoritesController');
 
-// Auth
+// ------------------ Auth ------------------
 router.post('/signup', signupUser);
 router.post('/login', loginUser);
 
-// Profile
+// ------------------ Profile ------------------
 router.get('/profile', userAuth, getUserProfile);
 router.put('/profile', userAuth, updateUserProfile);
 
-// Dashboard
+// ------------------ Dashboard ------------------
 router.get('/dashboard', userAuth, getUserDashboard);
 router.put('/dashboard', userAuth, updateUserDashboard);
 
-// Favorites
+// ------------------ Favorites ------------------
 router.get('/favorites', userAuth, getFavorites);
 router.post('/favorites', userAuth, toggleFavorite);
 router.delete('/favorites', userAuth, clearFavorites);
 
-// Me
+// ------------------ Current User ------------------
 router.get('/me', optional, getMe);
 
-// Forgot & Reset Password
+// ------------------ Forgot & Reset Password ------------------
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
