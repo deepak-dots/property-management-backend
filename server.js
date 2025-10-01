@@ -58,7 +58,7 @@ app.get("/test-cloudinary", async (req, res) => {
 });
 
 // ------------------ Routes ------------------
-app.use('/api/favorites', favoritesRouter);
+//app.use('/api/favorites', favoritesRouter);
 app.use('/api/pages', pageRoutes);
 app.use('/api/user', userRouter);
 
