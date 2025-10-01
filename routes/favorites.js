@@ -1,20 +1,13 @@
 // routes/favorites.js
 
-const express = require("express");
+const express = require('express');
 const { getFavorites, toggleFavorite, clearFavorites } = require('../controllers/favoritesController');
-const { authenticateUser } = require("../middleware/userAuth");
+const { userAuth } = require('../middleware/userAuth');
 
 const router = express.Router();
 
-// Get all favorites
-router.get('/', authenticateUser, getFavorites);
-
-// Toggle favorite
-router.post('/', authenticateUser, toggleFavorite);
-
-// Clear favorites
-router.delete('/', authenticateUser, clearFavorites);
+router.get('/', userAuth, getFavorites);
+router.post('/', userAuth, toggleFavorite);
+router.delete('/', userAuth, clearFavorites);
 
 module.exports = router;
-
-
