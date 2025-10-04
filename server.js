@@ -8,9 +8,10 @@ const cors = require('cors');
 const propertyRoutes = require('./routes/property');
 const adminRouter = require('./routes/adminRoutes');
 const userRouter = require('./routes/userRoutes');
-const quotesRouter = require('./routes/propertyQuotesForm');
+const quotesRouter = require('./routes/propertyQuotesForm'); // Quotes routes
 const cloudinary = require("./utils/cloudinary");
 const pageRoutes = require('./routes/page');
+const favoritesRouter = require('./routes/favorites');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,8 +22,8 @@ mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('✅ MongoDB connected'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
+.then(() => console.log('MongoDB connected'))
+.catch(err => console.error('MongoDB connection error:', err));
 
 // ------------------ CORS configuration ------------------
 const allowedOrigins = [
@@ -33,8 +34,8 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow Postman / server requests
-    if (!allowedOrigins.includes(origin)) {
+    if (!origin) return callback(null, true); // allow Postman or server requests
+    if (allowedOrigins.indexOf(origin) === -1) {
       const msg = `CORS error: This site ${origin} is not allowed.`;
       return callback(new Error(msg), false);
     }
@@ -57,16 +58,20 @@ app.get("/test-cloudinary", async (req, res) => {
 });
 
 // ------------------ Routes ------------------
+//app.use('/api/favorites', favoritesRouter);
 app.use('/api/pages', pageRoutes);
-app.use('/api/user', userRouter); // 👈 All user & favorites under /api/user/*
+app.use('/api/user', userRouter);
+
+// **Admin routes for signup/login & protected routes**
 app.use('/api/admin', adminRouter);
+
 app.use('/api/properties', propertyRoutes);
-app.use('/api/quotes', quotesRouter);
+app.use("/api/quotes", quotesRouter); // Quotes routes with optional auth
 
 // ------------------ Root ------------------
 app.get('/', (req, res) => {
-  res.send('Property API running 🚀');
+  res.send('Property API running');
 });
 
 // ------------------ Start server ------------------
-app.listen(PORT, () => console.log(`✅ Server started on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server started on port ${PORT}`));

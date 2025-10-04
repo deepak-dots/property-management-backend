@@ -37,14 +37,10 @@ const loginAdmin = async (req, res) => {
 
   try {
     const admin = await Admin.findOne({ email }).select('+password');
-    if (!admin) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
+    if (!admin) return res.status(401).json({ message: 'Invalid email or password' });
 
     const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
+    if (!isMatch) return res.status(401).json({ message: 'Invalid email or password' });
 
     const token = jwt.sign(
       { id: admin._id, email: admin.email, name: admin.name },
@@ -54,7 +50,13 @@ const loginAdmin = async (req, res) => {
 
     res.json({
       token,
-      user: { id: admin._id, name: admin.name, email: admin.email, phone: admin.phone, avatar: admin.avatar },
+      user: {
+        _id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+        avatar: admin.avatar,
+      },
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -64,13 +66,12 @@ const loginAdmin = async (req, res) => {
 
 // ----------------------
 // GET ADMIN PROFILE (Protected)
+// ----------------------
 const getAdminProfile = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
+    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
 
-    const admin = await Admin.findById(req.user.id).select('-password');
+    const admin = await Admin.findById(req.user._id).select('-password');
     if (!admin) return res.status(404).json({ message: 'Admin not found' });
 
     res.json(admin);
@@ -79,7 +80,6 @@ const getAdminProfile = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 
 module.exports = {
   signupAdmin,

@@ -1,12 +1,13 @@
 const PropertyQuoteForm = require("../models/PropertyQuoteForm");
 
-// Create new quote
+// Create new quote (guest or logged-in user)
 const createQuote = async (req, res) => {
   try {
     const data = req.body;
 
+    // Attach userId only if logged in
     if (req.user) {
-      data.userId = req.user._id; // attach logged-in user
+      data.userId = req.user._id;
     }
 
     const quote = await PropertyQuoteForm.create(data);
@@ -17,14 +18,13 @@ const createQuote = async (req, res) => {
   }
 };
 
-// Get all quotes (for admin)
+// Get all quotes (admin)
 const getAllQuotes = async (req, res) => {
   try {
     const quotes = await PropertyQuoteForm.find()
       .populate("userId", "name email")
-      .populate("propertyId", "title city"); // populate property info
+      .populate("propertyId", "title city");
 
-    // Format to include URL
     const formattedQuotes = quotes.map((q) => ({
       _id: q._id,
       name: q.name,
@@ -49,13 +49,12 @@ const getAllQuotes = async (req, res) => {
   }
 };
 
-// Get my quotes (for user)
+// Get quotes for logged-in user
 const getMyQuotes = async (req, res) => {
   try {
     const quotes = await PropertyQuoteForm.find({ userId: req.user._id })
       .populate("propertyId", "title city");
 
-    // Include URL for frontend
     const formattedQuotes = quotes.map((q) => ({
       _id: q._id,
       name: q.name,
@@ -80,7 +79,7 @@ const getMyQuotes = async (req, res) => {
   }
 };
 
-// Get single quote
+// Get single quote (currently for logged-in user)
 const getQuoteById = async (req, res) => {
   try {
     const quote = await PropertyQuoteForm.findById(req.params.id)
@@ -113,7 +112,7 @@ const getQuoteById = async (req, res) => {
   }
 };
 
-// Delete quote
+// Delete quote (currently for logged-in user)
 const deleteQuoteById = async (req, res) => {
   try {
     const quote = await PropertyQuoteForm.findByIdAndDelete(req.params.id);
