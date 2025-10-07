@@ -1,4 +1,4 @@
-// controllers/favoritesController.js
+// controllers/favoritesController.js 
 const User = require('../models/User');
 
 const getFavorites = async (req, res) => {
