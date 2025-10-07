@@ -161,6 +161,73 @@ const updateUserDashboard = async (req, res) => {
 // Me → frontend auto-fill
 const getMe = async (req, res) => res.json(req.user || null);
 
+
+// Send OTP
+const sendLoginOTP = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email is required' });
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+    user.otp = otp;
+    user.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 mins
+    await user.save();
+
+    await sendEmail({
+      to: email,
+      subject: 'Your Login OTP',
+      text: `Your OTP is ${otp}. It expires in 10 minutes.`,
+    });
+
+    res.json({ message: 'OTP sent successfully. Check your email.' });
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    res.status(500).json({ message: 'Error sending OTP' });
+  }
+};
+
+// Verify OTP
+const verifyLoginOTP = async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.status(400).json({ message: 'Email and OTP are required' });
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (user.otp !== otp) return res.status(400).json({ message: 'Invalid OTP' });
+    if (user.otpExpiry < Date.now()) return res.status(400).json({ message: 'OTP has expired' });
+
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+    await user.save();
+
+    const token = jwt.sign(
+      { _id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: 'Login successful via OTP',
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+    res.status(500).json({ message: 'Server error verifying OTP' });
+  }
+};
+
 module.exports = {
   signupUser,
   loginUser,
@@ -171,4 +238,6 @@ module.exports = {
   getMe,
   forgotPassword,
   resetPassword,
+  sendLoginOTP,
+  verifyLoginOTP,
 };

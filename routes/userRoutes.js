@@ -11,6 +11,8 @@ const {
   getMe,
   forgotPassword,
   resetPassword,
+  sendLoginOTP,   
+  verifyLoginOTP,
 } = require('../controllers/userController');
 
 const { userAuth, optional } = require('../middleware/userAuth');
@@ -23,6 +25,10 @@ const {
 // ------------------ Auth ------------------
 router.post('/signup', signupUser);
 router.post('/login', loginUser);
+
+// ------------------ OTP Login ------------------
+router.post('/login/send-otp', sendLoginOTP);      
+router.post('/login/verify-otp', verifyLoginOTP);  
 
 // ------------------ Profile ------------------
 router.get('/profile', userAuth, getUserProfile);

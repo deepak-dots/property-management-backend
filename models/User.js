@@ -11,6 +11,9 @@ const userSchema = new mongoose.Schema({
   favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
   resetPasswordToken: { type: String },
   resetPasswordExpiry: { type: Date },
+
+  otp: { type: String },
+  otpExpiry: { type: Date }
 }, { timestamps: true });
 
 // Virtuals
