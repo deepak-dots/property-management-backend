@@ -1,3 +1,4 @@
+// controllers/propertyController.js
 require('dotenv').config();
 const axios = require('axios');
 const Property = require('../models/Property');
