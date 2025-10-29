@@ -23,10 +23,10 @@ const forgotPassword = async (req, res) => {
 
     await sendEmail({ to: email, subject: 'Password Reset Request', text: message });
 
-    res.json({ message: 'Reset link sent to your email. Please check your inbox and spam folder.' });
+    return res.json({ message: 'Reset link sent to your email. Please check your inbox and spam folder.' });
   } catch (err) {
     console.error('Forgot password error:', err.message);
-    res.status(500).json({ message: 'Error sending reset link' });
+    return res.status(500).json({ message: 'Error sending reset link' });
   }
 };
 
