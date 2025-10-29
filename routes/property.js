@@ -58,4 +58,8 @@ router.post("/:id/duplicate", propertyController.duplicateProperty || ((req, res
 router.delete("/:id", propertyController.deleteProperty || ((req, res) => res.status(501).json({ message: "Not implemented" })));
 router.get("/:id/related", propertyController.getRelatedProperties || ((req, res) => res.status(501).json({ message: "Not implemented" })));
 
+// Add below other routes
+router.post("/:id/reviews", propertyController.addReview);
+
+
 module.exports = router;
