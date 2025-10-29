@@ -12,10 +12,12 @@ cloudinary.config({
 
 // Helper: geocode address using Google Geocoding API (returns [lng, lat])
 async function geocodeAddress(address) {
-  if (!address || !process.env.GOOGLE_MAPS_API_KEY) return null;
+  if (!address || !process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) return null;
+
+
   try {
     const res = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
-      params: { address, key: process.env.GOOGLE_MAPS_API_KEY }
+      params: { address, key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }
     });
     if (res.data && res.data.results && res.data.results.length) {
       const loc = res.data.results[0].geometry.location;
@@ -94,6 +96,9 @@ exports.getPropertyById = async (req, res) => {
 
 // -------------------- CREATE PROPERTY --------------------
 exports.createProperty = async (req, res) => {
+
+
+
   try {
     const {
       title, bhkType, furnishing, bedrooms, bathrooms, superBuiltupArea,
@@ -101,6 +106,26 @@ exports.createProperty = async (req, res) => {
       price, reraId, address, description, city, activeStatus,
       lat, lng
     } = req.body;
+
+      // Normalize amenities (always array of strings)
+      let { amenities } = req.body;
+      if (!Array.isArray(amenities)) {
+        if (typeof amenities === 'string') {
+          if (amenities.startsWith('[') && amenities.endsWith(']')) {
+            try {
+              amenities = JSON.parse(amenities);
+            } catch {
+              amenities = [amenities];
+            }
+          } else {
+            amenities = amenities.split(',').map(a => a.trim());
+          }
+        } else if (amenities == null) {
+          amenities = [];
+        } else {
+          amenities = [String(amenities)];
+        }
+      }
 
     const images = req.files ? req.files.map(file => file.path) : [];
 
@@ -122,7 +147,8 @@ exports.createProperty = async (req, res) => {
       description,
       city,
       activeStatus: activeStatus || 'Draft',
-      images
+      images,
+      amenities,
     };
 
     // ---- Handle Location ----
@@ -151,12 +177,33 @@ exports.createProperty = async (req, res) => {
 
 // -------------------- UPDATE PROPERTY --------------------
 exports.updateProperty = async (req, res) => {
+
+
   try {
     const {
       title, bhkType, furnishing, bedrooms, bathrooms, superBuiltupArea,
       developer, project, transactionType, propertyType, status, price, reraId, address,
       description, city, activeStatus, existingImages, removedImages, lat, lng
     } = req.body;
+
+    let { amenities } = req.body;
+    if (!Array.isArray(amenities)) {
+      if (typeof amenities === 'string') {
+        if (amenities.startsWith('[') && amenities.endsWith(']')) {
+          try {
+            amenities = JSON.parse(amenities);
+          } catch {
+            amenities = [amenities];
+          }
+        } else {
+          amenities = amenities.split(',').map(a => a.trim());
+        }
+      } else if (amenities == null) {
+        amenities = [];
+      } else {
+        amenities = [String(amenities)];
+      }
+    }
 
     const existingImgs = existingImages
       ? (typeof existingImages === 'string' ? JSON.parse(existingImages) : existingImages)
@@ -203,6 +250,7 @@ exports.updateProperty = async (req, res) => {
       city,
       activeStatus,
       images: updatedImages,
+      amenities,
     };
 
     // ---- Handle Location ----
@@ -337,5 +385,30 @@ exports.getNearbyProperties = async (req, res) => {
   } catch (err) {
     console.error("Nearby search error:", err);
     res.status(500).json({ message: "Error fetching nearby properties", error: err.message });
+  }
+};
+
+
+
+// -------------------- ADD REVIEW --------------------
+exports.addReview = async (req, res) => {
+  try {
+    const { name, message, rating } = req.body;
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    // Push new review
+    property.reviews.push({ name, message, rating });
+
+    // Recalculate average
+    property.averageRating =
+      property.reviews.reduce((acc, r) => acc + r.rating, 0) / property.reviews.length;
+
+    await property.save();
+
+    res.status(201).json({ message: 'Review added', averageRating: property.averageRating, reviews: property.reviews });
+  } catch (err) {
+    console.error("Add review error:", err);
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
