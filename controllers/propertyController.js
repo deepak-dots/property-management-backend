@@ -397,18 +397,102 @@ exports.addReview = async (req, res) => {
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
-    // Push new review
-    property.reviews.push({ name, message, rating });
+    // New review (default hidden until approved)
+    property.reviews.push({ name, message, rating, approved: false });
 
-    // Recalculate average
+    // Average rating = only approved reviews
+    const approvedReviews = property.reviews.filter(r => r.approved);
     property.averageRating =
-      property.reviews.reduce((acc, r) => acc + r.rating, 0) / property.reviews.length;
+      approvedReviews.length > 0
+        ? approvedReviews.reduce((acc, r) => acc + r.rating, 0) / approvedReviews.length
+        : 0;
 
     await property.save();
 
-    res.status(201).json({ message: 'Review added', averageRating: property.averageRating, reviews: property.reviews });
+    res.status(201).json({
+      message: 'Review submitted for approval',
+      averageRating: property.averageRating,
+      reviews: property.reviews,
+    });
   } catch (err) {
     console.error("Add review error:", err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+
+// -------------------- GET ALL REVIEWS (for Admin) --------------------
+exports.getAllReviews = async (req, res) => {
+  try {
+    const properties = await Property.find().select("title city reviews");
+
+    const allReviews = [];
+
+    properties.forEach((property) => {
+      property.reviews.forEach((review) => {
+        allReviews.push({
+          ...review.toObject(),
+          propertyId: property._id,
+          propertyTitle: property.title,
+          propertyCity: property.city,
+        });
+      });
+    });
+
+    res.status(200).json(allReviews);
+  } catch (err) {
+    console.error("Get all reviews error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+// -------------------- GET REVIEWS --------------------
+exports.getReviewsByProperty = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    res.status(200).json({
+      propertyName: property.title,
+      averageRating: property.averageRating || 0,
+      reviews: property.reviews,
+    });
+  } catch (err) {
+    console.error('Get reviews error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// -------------------- TOGGLE REVIEW APPROVAL --------------------
+exports.toggleReviewApproval = async (req, res) => {
+  try {
+    const { id: propertyId, reviewId } = req.params;
+    const { approved } = req.body;
+
+    const property = await Property.findById(propertyId);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    const review = property.reviews.id(reviewId);
+    if (!review) return res.status(404).json({ message: 'Review not found' });
+
+    review.approved = approved;
+
+    const approvedReviews = property.reviews.filter(r => r.approved);
+    property.averageRating =
+      approvedReviews.length > 0
+        ? approvedReviews.reduce((acc, r) => acc + r.rating, 0) / approvedReviews.length
+        : 0;
+
+    await property.save();
+
+    res.status(200).json({
+      message: `Review ${approved ? "approved" : "hidden"} successfully`,
+      reviews: property.reviews,
+      averageRating: property.averageRating,
+    });
+  } catch (err) {
+    console.error('Toggle review approval error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

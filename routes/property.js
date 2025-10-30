@@ -45,6 +45,14 @@ router.get("/compare-properties", propertyController.compare);
 // NEW: nearby (place BEFORE '/:id')
 router.post("/nearby", propertyController.getNearbyProperties);
 
+// review
+router.post("/:id/reviews", propertyController.addReview);
+router.get("/:id/reviews", propertyController.getReviewsByProperty);
+router.patch("/:id/reviews/:reviewId/approval", propertyController.toggleReviewApproval);
+router.get("/reviews", propertyController.getAllReviews);
+
+
+
 // get all / get by ID
 router.get("/", propertyController.getProperties);
 router.get("/:id", propertyController.getPropertyById);
@@ -57,9 +65,5 @@ router.put("/:id", upload.array("images", 10), propertyController.updateProperty
 router.post("/:id/duplicate", propertyController.duplicateProperty || ((req, res) => res.status(501).json({ message: "Not implemented" })));
 router.delete("/:id", propertyController.deleteProperty || ((req, res) => res.status(501).json({ message: "Not implemented" })));
 router.get("/:id/related", propertyController.getRelatedProperties || ((req, res) => res.status(501).json({ message: "Not implemented" })));
-
-// Add below other routes
-router.post("/:id/reviews", propertyController.addReview);
-
 
 module.exports = router;

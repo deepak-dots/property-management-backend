@@ -1,6 +1,14 @@
 // models/Property.js
 const mongoose = require('mongoose');
 
+const ReviewSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  message: { type: String },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  approved: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+});
+
 const PropertySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
@@ -28,16 +36,8 @@ const PropertySchema = new mongoose.Schema({
   amenities: [{ type: String }],
   activeStatus: { type: String, enum: ['Active', 'Draft'], default: 'Draft' },
 
-  // --- Reviews ---
-  reviews: [
-    {
-      name: { type: String, required: true },
-      message: { type: String },
-      rating: { type: Number, required: true, min: 1, max: 5 },
-      createdAt: { type: Date, default: Date.now }
-    }
-  ],
-  averageRating: { type: Number, default: 0 }
+  reviews: [ReviewSchema],
+  averageRating: { type: Number, default: 0 },
 
 }, { timestamps: true });
 
