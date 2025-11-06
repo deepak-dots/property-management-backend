@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail'); 
+//const sendEmail = require('../utils/resendEmail'); 
 const crypto = require('crypto');
 
 // Forgot Password
@@ -16,6 +17,14 @@ const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpiry = Date.now() + 60 * 60 * 1000; // 1 hour
+
+    // If user was newsletter-only, make them a normal user now
+    if (user.isNewsletterOnly) {
+      user.isNewsletterOnly = false;
+      user.newsletter = true; // keep subscription
+    }
+
+
     await user.save();
 
     const resetUrl = `${process.env.FRONTEND_URL}/user/reset-password?token=${resetToken}&email=${email}`;
@@ -23,10 +32,10 @@ const forgotPassword = async (req, res) => {
 
     await sendEmail({ to: email, subject: 'Password Reset Request', text: message });
 
-    return res.json({ message: 'Reset link sent to your email. Please check your inbox and spam folder.' });
+    res.json({ message: 'Reset link sent to your email. Please check your inbox and spam folder.' });
   } catch (err) {
     console.error('Forgot password error:', err.message);
-    return res.status(500).json({ message: 'Error sending reset link' });
+    res.status(500).json({ message: 'Error sending reset link' });
   }
 };
 
@@ -44,6 +53,13 @@ const resetPassword = async (req, res) => {
     user.password = password; // pre('save') hashes it
     user.resetPasswordToken = undefined;
     user.resetPasswordExpiry = undefined;
+
+    // If user was newsletter-only, make them a normal user now
+    if (user.isNewsletterOnly) {
+      user.isNewsletterOnly = false;
+      user.newsletter = true; // keep subscription
+    }
+
     await user.save();
 
     res.json({ message: 'Password has been reset successfully' });
@@ -158,6 +174,22 @@ const updateUserDashboard = async (req, res) => {
   }
 };
 
+
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find(
+      {},
+      'name email phone role newsletter isNewsletterOnly createdAt'
+    ).sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, users });
+  } catch (err) {
+    console.error('getAllUsers error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // Me → frontend auto-fill
 const getMe = async (req, res) => res.json(req.user || null);
 
@@ -228,6 +260,57 @@ const verifyLoginOTP = async (req, res) => {
   }
 };
 
+
+// Newsletter subscription
+const subscribeNewsletter = async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    // Check if user exists
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // If user exists, mark newsletter true if not already
+      if (!user.newsletter) {
+        user.newsletter = true;
+        await user.save();
+      }
+      return res.status(200).json({ message: 'You are already subscribed to our newsletter.' });
+    }
+
+    // Create newsletter-only user with random password (so schema validations pass)
+    const randomPassword = Math.random().toString(36).slice(-8) + Date.now().toString(36).slice(-4);
+    user = new User({
+      name: name || 'Newsletter Subscriber',
+      email,
+      password: randomPassword,
+      newsletter: true,
+      isNewsletterOnly: true,
+    });
+
+    await user.save();
+
+    // Optional: send a simple confirmation email (do NOT send the random password)
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'Subscribed to Newsletter',
+        text: 'Thanks for subscribing to our newsletter!',
+      });
+    } catch (e) {
+      console.warn('Newsletter: confirmation email failed', e.message || e);
+      // do not fail subscription if email send fails
+    }
+
+    return res.status(201).json({ message: 'Subscribed successfully!' });
+  } catch (err) {
+    console.error('subscribeNewsletter error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
 module.exports = {
   signupUser,
   loginUser,
@@ -240,4 +323,5 @@ module.exports = {
   resetPassword,
   sendLoginOTP,
   verifyLoginOTP,
+  subscribeNewsletter,
 };

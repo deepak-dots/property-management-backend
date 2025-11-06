@@ -13,7 +13,12 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpiry: { type: Date },
 
   otp: { type: String },
-  otpExpiry: { type: Date }
+  otpExpiry: { type: Date },
+
+  // newsletter flags
+  newsletter: { type: Boolean, default: false },
+  isNewsletterOnly: { type: Boolean, default: false },
+
 }, { timestamps: true });
 
 // Virtuals

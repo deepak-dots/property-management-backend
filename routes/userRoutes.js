@@ -13,6 +13,7 @@ const {
   resetPassword,
   sendLoginOTP,   
   verifyLoginOTP,
+  subscribeNewsletter,
 } = require('../controllers/userController');
 
 const { userAuth, optional } = require('../middleware/userAuth');
@@ -49,5 +50,12 @@ router.get('/me', optional, getMe);
 // ------------------ Forgot & Reset Password ------------------
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
+
+// Newsletter subscribe endpoint
+router.post('/newsletter/subscribe', subscribeNewsletter);
+
+
+
+
 
 module.exports = router;
