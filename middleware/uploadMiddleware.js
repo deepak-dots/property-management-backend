@@ -1,4 +1,4 @@
-// utils/cloudinary.js
+// middleware/uploadMiddleware.js
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const multer = require("multer");
@@ -10,16 +10,27 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Storage setup (multiple images allowed)
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
+// For property images
+const propertyStorage = new CloudinaryStorage({
+  cloudinary,
   params: {
-    folder: "properties", // Cloudinary folder name
+    folder: "properties",
     allowed_formats: ["jpg", "png", "jpeg", "webp"],
   },
 });
+const upload = multer({ storage: propertyStorage });
 
-// Multer middleware
-const upload = multer({ storage });
+// For blog images
+const blogStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "blog_images",
+    allowed_formats: ["jpg", "png", "jpeg", "webp"],
+  },
+});
+const blogUpload = multer({ storage: blogStorage });
 
-module.exports = { cloudinary, upload };
+module.exports = { cloudinary, upload, blogUpload };
+
+
+
