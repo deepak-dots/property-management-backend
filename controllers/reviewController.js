@@ -5,7 +5,7 @@ export const getReviewsByProperty = async (req, res) => {
   try {
     const { propertyId } = req.params;
 
-    // ✅ Find only approved reviews
+    //  Find only approved reviews
     const reviews = await Review.find({ property: propertyId, approved: true }).sort({ createdAt: -1 });
 
     // Get property name
