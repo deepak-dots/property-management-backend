@@ -12,10 +12,15 @@ const quotesRouter = require('./routes/propertyQuotesForm'); // Quotes routes
 const cloudinary = require("./utils/cloudinary");
 const pageRoutes = require('./routes/page');
 const favoritesRouter = require('./routes/favorites');
+const contactUsRoutes = require('./routes/contactUsRoutes');
+const blogRoutes = require('./routes/blogPosts');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
+
+const resendEmail = require('./utils/resendEmail');
 
 // ------------------ Connect MongoDB ------------------
 mongoose.connect(MONGO_URI, {
@@ -57,8 +62,30 @@ app.get("/test-cloudinary", async (req, res) => {
   }
 });
 
+
+// ------------------ Email Test Route ------------------
+app.post('/api/test-email', async (req, res) => {
+  try {
+    const { to, subject, text } = req.body;
+
+    if (!to) {
+      return res.status(400).json({ error: 'Recipient email required' });
+    }
+
+    const result = await resendEmail({ to, subject, text });
+    res.status(200).json({ message: '✅ Email sent successfully!', result });
+  } catch (error) {
+    console.error('❌ Email error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ------------------ Routes ------------------
 //app.use('/api/favorites', favoritesRouter);
+app.use('/api/contact-us', contactUsRoutes);
+
+app.use('/api/admin', adminRouter);
+
 app.use('/api/pages', pageRoutes);
 app.use('/api/user', userRouter);
 
@@ -66,7 +93,12 @@ app.use('/api/user', userRouter);
 app.use('/api/admin', adminRouter);
 
 app.use('/api/properties', propertyRoutes);
-app.use("/api/quotes", quotesRouter); // Quotes routes with optional auth
+app.use("/api/quotes", quotesRouter); 
+
+
+// post
+app.use('/api/blogs', blogRoutes);
+
 
 // ------------------ Root ------------------
 app.get('/', (req, res) => {
