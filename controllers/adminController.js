@@ -2,6 +2,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const Admin = require('../models/Admin');
+const User = require('../models/User');
+
 
 // ----------------------
 // ADMIN SIGNUP
@@ -81,10 +83,26 @@ const getAdminProfile = async (req, res) => {
   }
 };
 
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find(
+      {},
+      'name email phone role newsletter isNewsletterOnly createdAt'
+    ).sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, users });
+  } catch (err) {
+    console.error('getAllUsers error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+
 module.exports = {
   signupAdmin,
   loginAdmin,
   getAdminProfile,
+  getAllUsers,
 };
 
 
