@@ -51,6 +51,12 @@ router.get("/:id/reviews", propertyController.getReviewsByProperty);
 router.patch("/:id/reviews/:reviewId/approval", propertyController.toggleReviewApproval);
 router.get("/reviews", propertyController.getAllReviews);
 
+// Developer and Project routes
+router.get("/developers", propertyController.getDevelopers);
+router.get("/projects", propertyController.getProjects);
+
+// Filter properties by developer or project
+router.get("/filter", propertyController.filterByDeveloperOrProject);
 
 
 // get all / get by ID
@@ -65,5 +71,7 @@ router.put("/:id", upload.array("images", 10), propertyController.updateProperty
 router.post("/:id/duplicate", propertyController.duplicateProperty || ((req, res) => res.status(501).json({ message: "Not implemented" })));
 router.delete("/:id", propertyController.deleteProperty || ((req, res) => res.status(501).json({ message: "Not implemented" })));
 router.get("/:id/related", propertyController.getRelatedProperties || ((req, res) => res.status(501).json({ message: "Not implemented" })));
+
+
 
 module.exports = router;
