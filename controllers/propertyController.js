@@ -3,6 +3,8 @@ require('dotenv').config();
 const axios = require('axios');
 const Property = require('../models/Property');
 const { v2: cloudinary } = require('cloudinary');
+const mongoose = require('mongoose');
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -54,6 +56,17 @@ exports.getProperties = async (req, res) => {
     if (transactionType) filter.transactionType = transactionType;
     if (priceMin) filter.price = { ...filter.price, $gte: Number(priceMin) };
     if (priceMax) filter.price = { ...filter.price, $lte: Number(priceMax) };
+
+  if (req.query.developer) {
+    const developerName = decodeURIComponent(req.query.developer).replace(/\+/g, ' ');
+    filter.developer = { $regex: new RegExp(`^${developerName}$`, 'i') };
+    console.log("🔍 Developer filter applied:", developerName);
+  }
+
+  if (req.query.project) {
+    const projectName = decodeURIComponent(req.query.project).replace(/\+/g, ' ');
+    filter.project = { $regex: new RegExp(`^${projectName}$`, 'i') };
+  }
 
     // Radius filter
     if (lat && lng && radius) {
@@ -390,6 +403,57 @@ exports.getNearbyProperties = async (req, res) => {
 
 
 
+// -------------------- GET UNIQUE DEVELOPERS --------------------
+exports.getDevelopers = async (req, res) => {
+  try {
+    const developers = await Property.distinct("developer", {
+      developer: { $ne: null, $ne: "" },
+    });
+    res.status(200).json(developers);
+  } catch (err) {
+    console.error("Get developers error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// -------------------- GET UNIQUE PROJECTS --------------------
+exports.getProjects = async (req, res) => {
+  try {
+    const projects = await Property.distinct("project", {
+      project: { $ne: null, $ne: "" },
+    });
+    res.status(200).json(projects);
+  } catch (err) {
+    console.error("Get projects error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// -------------------- FILTER PROPERTIES BY DEVELOPER OR PROJECT --------------------
+exports.filterByDeveloperOrProject = async (req, res) => {
+  try {
+    const { developer, project } = req.query;
+
+    if (!developer && !project) {
+      return res.status(400).json({ message: "Developer or Project required" });
+    }
+
+    const filter = {};
+    if (developer) filter.developer = developer;
+    if (project) filter.project = project;
+
+    const properties = await Property.find(filter).sort({ createdAt: -1 });
+
+    res.status(200).json({ count: properties.length, properties });
+  } catch (err) {
+    console.error("Filter properties error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+
+
 // -------------------- ADD REVIEW --------------------
 exports.addReview = async (req, res) => {
   try {
@@ -450,7 +514,14 @@ exports.getAllReviews = async (req, res) => {
 // -------------------- GET REVIEWS --------------------
 exports.getReviewsByProperty = async (req, res) => {
   try {
-    const property = await Property.findById(req.params.id);
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid property ID' });
+    }
+
+    const property = await Property.findById(id);
     if (!property) return res.status(404).json({ message: 'Property not found' });
 
     res.status(200).json({
